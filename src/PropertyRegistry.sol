@@ -24,12 +24,7 @@ contract PropertyRegistry is AccessControl {
     mapping(address => mapping(uint256 => bytes32)) private landlordToPropertyCodes;
     mapping(address => uint256) public landlordPropertyCount;
 
-    event PropertyRegistered(
-        address indexed operator,
-        address indexed landlord,
-        bytes32 code,
-        uint256 flatCount
-    );
+    event PropertyRegistered(address indexed operator, address indexed landlord, bytes32 code, uint256 flatCount);
     event PropertyDeactivated(address indexed admin, bytes32 code, address landlord);
     event PropertyFlatCountUpdated(bytes32 code, uint8 oldFlatCount, uint8 newFlatCount);
     event PropertyLocationUpdated(bytes32 code, string oldLocation, string newLocation);
@@ -46,12 +41,10 @@ contract PropertyRegistry is AccessControl {
         _grantRole(OPERATOR_ROLE, initialOperator);
     }
 
-    function registerProperty(
-        bytes32 code,
-        address landlordWallet,
-        uint8 flatCount,
-        string calldata location
-    ) external onlyRole(OPERATOR_ROLE) {
+    function registerProperty(bytes32 code, address landlordWallet, uint8 flatCount, string calldata location)
+        external
+        onlyRole(OPERATOR_ROLE)
+    {
         if (code == bytes32(0)) {
             revert InvalidParameter("code", InvalidParameterMessage.EmptyString);
         }
@@ -68,12 +61,8 @@ contract PropertyRegistry is AccessControl {
             revert DuplicatePropertyCode(msg.sender, code);
         }
 
-        Property memory newProperty = Property({
-            flatCount: flatCount,
-            location: location,
-            isActive: true,
-            createdAt: uint40(block.timestamp)
-        });
+        Property memory newProperty =
+            Property({flatCount: flatCount, location: location, isActive: true, createdAt: uint40(block.timestamp)});
 
         properties[code] = newProperty;
         propertyToLandlord[code] = landlordWallet;
@@ -85,11 +74,10 @@ contract PropertyRegistry is AccessControl {
         emit PropertyRegistered(msg.sender, landlordWallet, code, flatCount);
     }
 
-    function updateProperty(
-        bytes32 code,
-        uint8 newFlatCount,
-        string calldata newLocation
-    ) external onlyRole(OPERATOR_ROLE) {
+    function updateProperty(bytes32 code, uint8 newFlatCount, string calldata newLocation)
+        external
+        onlyRole(OPERATOR_ROLE)
+    {
         if (!propertyExists(code)) {
             revert PropertyNotFound(code);
         }

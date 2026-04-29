@@ -44,9 +44,7 @@ contract WalletFactoryTest is Test {
 
     function test_AssignWallet_RevertsIfWalletIsZeroAddress() public {
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(WalletFactory.ZeroAddress.selector, address(0))
-        );
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.ZeroAddress.selector, address(0)));
         walletFactory.assignWallet(userId1, address(0));
     }
 
@@ -55,9 +53,7 @@ contract WalletFactoryTest is Test {
         walletFactory.assignWallet(userId1, wallet1);
 
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(WalletFactory.WalletAlreadyAssigned.selector, userId1)
-        );
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.WalletAlreadyAssigned.selector, userId1));
         walletFactory.assignWallet(userId1, wallet2);
     }
 
@@ -66,9 +62,7 @@ contract WalletFactoryTest is Test {
         walletFactory.assignWallet(userId1, wallet1);
 
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(WalletFactory.WalletReuseNotAllowed.selector, wallet1)
-        );
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.WalletReuseNotAllowed.selector, wallet1));
         walletFactory.assignWallet(userId2, wallet1);
     }
 
