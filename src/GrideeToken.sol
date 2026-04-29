@@ -16,7 +16,7 @@ contract GrideeToken is ERC20, AccessControl {
         _mint(to, amount);
     }
 
-    function burn(address to, uint256 amount) external onlyRole(OPERATOR_ROLE) {
-        _burn(to, amount);
+    function burn(address account, uint256 amount) external onlyRole(OPERATOR_ROLE) {
+        _burn(account, amount);
     }
 }
