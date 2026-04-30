@@ -12,61 +12,52 @@ contract WalletFactoryTest is Test {
     address public randomUser = makeAddr("randomUser");
     address public wallet1 = makeAddr("wallet1");
     address public wallet2 = makeAddr("wallet2");
-    uint256 public userId1 = 1;
-    uint256 public userId2 = 2;
+    bytes32 public phoneHash1 = keccak256(abi.encodePacked("+2348012345678"));
+    bytes32 public phoneHash2 = keccak256(abi.encodePacked("+2348098765432"));
+    bytes32 public propertyCode = keccak256(abi.encodePacked("GRD-LAG-0045"));
 
     function setUp() public {
         walletFactory = new WalletFactory(deployer, operator);
     }
 
-    function test_AssignWallet() public {
+    // ==================== REGISTER LANDLORD ====================
+
+    function test_RegisterLandlord() public {
         vm.prank(operator);
         vm.expectEmit(true, false, false, true);
-        emit WalletFactory.WalletAssigned(operator, userId1, wallet1);
-        walletFactory.assignWallet(userId1, wallet1);
+        emit WalletFactory.LandlordRegistered(operator, phoneHash1, wallet1);
+        walletFactory.registerLandlord(phoneHash1, wallet1);
 
-        assertEq(walletFactory.wallets(userId1), wallet1);
-        assertEq(walletFactory.getWallet(userId1), wallet1);
-        assertEq(walletFactory.walletToUserId(wallet1), userId1);
+        assertEq(walletFactory.landlordWallets(phoneHash1), wallet1);
+        assertEq(walletFactory.getLandlordWallet(phoneHash1), wallet1);
+        assertTrue(walletFactory.isWalletRegistered(wallet1));
     }
 
-    function test_AssignWallet_MultipleUsers() public {
-        vm.prank(operator);
-        walletFactory.assignWallet(userId1, wallet1);
-        vm.prank(operator);
-        walletFactory.assignWallet(userId2, wallet2);
-
-        assertEq(walletFactory.wallets(userId1), wallet1);
-        assertEq(walletFactory.wallets(userId2), wallet2);
-        assertEq(walletFactory.walletToUserId(wallet1), userId1);
-        assertEq(walletFactory.walletToUserId(wallet2), userId2);
-    }
-
-    function test_AssignWallet_RevertsIfWalletIsZeroAddress() public {
+    function test_RegisterLandlord_RevertsIfWalletIsZeroAddress() public {
         vm.prank(operator);
         vm.expectRevert(abi.encodeWithSelector(WalletFactory.ZeroAddress.selector, address(0)));
-        walletFactory.assignWallet(userId1, address(0));
+        walletFactory.registerLandlord(phoneHash1, address(0));
     }
 
-    function test_AssignWallet_RevertsIfWalletAlreadyAssigned() public {
+    function test_RegisterLandlord_RevertsIfWalletAlreadyRegistered() public {
         vm.prank(operator);
-        walletFactory.assignWallet(userId1, wallet1);
+        walletFactory.registerLandlord(phoneHash1, wallet1);
 
         vm.prank(operator);
-        vm.expectRevert(abi.encodeWithSelector(WalletFactory.WalletAlreadyAssigned.selector, userId1));
-        walletFactory.assignWallet(userId1, wallet2);
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.WalletAlreadyRegistered.selector, wallet1));
+        walletFactory.registerLandlord(phoneHash2, wallet1);
     }
 
-    function test_AssignWallet_RevertsIfWalletReuse() public {
+    function test_RegisterLandlord_RevertsIfLandlordAlreadyRegistered() public {
         vm.prank(operator);
-        walletFactory.assignWallet(userId1, wallet1);
+        walletFactory.registerLandlord(phoneHash1, wallet1);
 
         vm.prank(operator);
-        vm.expectRevert(abi.encodeWithSelector(WalletFactory.WalletReuseNotAllowed.selector, wallet1));
-        walletFactory.assignWallet(userId2, wallet1);
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.LandlordAlreadyRegistered.selector, phoneHash1));
+        walletFactory.registerLandlord(phoneHash1, wallet2);
     }
 
-    function test_AssignWallet_RevertsIfNotOperator() public {
+    function test_RegisterLandlord_RevertsIfNotOperator() public {
         vm.prank(randomUser);
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -75,30 +66,111 @@ contract WalletFactoryTest is Test {
                 0x97667070c54ef182b0f5858b034beac1b6f3089aa2d3188bb1e8929f4fa9b929
             )
         );
-        walletFactory.assignWallet(userId1, wallet1);
+        walletFactory.registerLandlord(phoneHash1, wallet1);
     }
 
-    function test_GetWallet_ReturnsZeroForUnassignedUser() public view {
-        assertEq(walletFactory.getWallet(userId1), address(0));
-    }
+    // ==================== REGISTER TENANT ====================
 
-    function test_GetWallet_ReturnsAssignedWallet() public {
+    function test_RegisterTenant() public {
         vm.prank(operator);
-        walletFactory.assignWallet(userId1, wallet1);
+        vm.expectEmit(true, false, false, true);
+        emit WalletFactory.TenantRegistered(operator, phoneHash1, wallet1, propertyCode);
+        walletFactory.registerTenant(phoneHash1, wallet1, propertyCode);
 
-        assertEq(walletFactory.getWallet(userId1), wallet1);
+        assertEq(walletFactory.tenantWallets(phoneHash1), wallet1);
+        assertEq(walletFactory.getTenantWallet(phoneHash1), wallet1);
+        assertEq(walletFactory.tenantProperty(phoneHash1), propertyCode);
+        assertEq(walletFactory.getTenantProperty(phoneHash1), propertyCode);
+        assertTrue(walletFactory.isWalletRegistered(wallet1));
     }
 
-    function test_WalletExists_ReturnsFalseForUnassignedUser() public view {
-        assertFalse(walletFactory.walletExists(userId1));
-    }
-
-    function test_WalletExists_ReturnsTrueForAssignedUser() public {
+    function test_RegisterTenant_RevertsIfWalletIsZeroAddress() public {
         vm.prank(operator);
-        walletFactory.assignWallet(userId1, wallet1);
-
-        assertTrue(walletFactory.walletExists(userId1));
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.ZeroAddress.selector, address(0)));
+        walletFactory.registerTenant(phoneHash1, address(0), propertyCode);
     }
+
+    function test_RegisterTenant_RevertsIfWalletAlreadyRegistered() public {
+        vm.prank(operator);
+        walletFactory.registerLandlord(phoneHash1, wallet1);
+
+        vm.prank(operator);
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.WalletAlreadyRegistered.selector, wallet1));
+        walletFactory.registerTenant(phoneHash2, wallet1, propertyCode);
+    }
+
+    function test_RegisterTenant_RevertsIfTenantAlreadyRegistered() public {
+        vm.prank(operator);
+        walletFactory.registerTenant(phoneHash1, wallet1, propertyCode);
+
+        vm.prank(operator);
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.TenantAlreadyRegistered.selector, phoneHash1));
+        walletFactory.registerTenant(phoneHash1, wallet2, propertyCode);
+    }
+
+    function test_RegisterTenant_RevertsIfPropertyCodeIsEmpty() public {
+        vm.prank(operator);
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.EmptyPropertyCode.selector, bytes32(0)));
+        walletFactory.registerTenant(phoneHash1, wallet1, bytes32(0));
+    }
+
+    function test_RegisterTenant_RevertsIfNotOperator() public {
+        vm.prank(randomUser);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                randomUser,
+                0x97667070c54ef182b0f5858b034beac1b6f3089aa2d3188bb1e8929f4fa9b929
+            )
+        );
+        walletFactory.registerTenant(phoneHash1, wallet1, propertyCode);
+    }
+
+    // ==================== VIEW FUNCTIONS ====================
+
+    function test_GetLandlordWallet_ReturnsZeroForUnregistered() public view {
+        assertEq(walletFactory.getLandlordWallet(phoneHash1), address(0));
+    }
+
+    function test_GetTenantWallet_ReturnsZeroForUnregistered() public view {
+        assertEq(walletFactory.getTenantWallet(phoneHash1), address(0));
+    }
+
+    function test_GetTenantProperty_ReturnsZeroForUnregistered() public view {
+        assertEq(walletFactory.getTenantProperty(phoneHash1), bytes32(0));
+    }
+
+    function test_IsWalletRegistered_ReturnsFalseForUnregistered() public view {
+        assertFalse(walletFactory.isWalletRegistered(wallet1));
+    }
+
+    function test_IsWalletRegistered_ReturnsTrueForRegistered() public {
+        vm.prank(operator);
+        walletFactory.registerLandlord(phoneHash1, wallet1);
+        assertTrue(walletFactory.isWalletRegistered(wallet1));
+    }
+
+    // ==================== CROSS-TYPE WALLET REUSE ====================
+
+    function test_CannotReuseLandlordWalletForTenant() public {
+        vm.prank(operator);
+        walletFactory.registerLandlord(phoneHash1, wallet1);
+
+        vm.prank(operator);
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.WalletAlreadyRegistered.selector, wallet1));
+        walletFactory.registerTenant(phoneHash2, wallet1, propertyCode);
+    }
+
+    function test_CannotReuseTenantWalletForLandlord() public {
+        vm.prank(operator);
+        walletFactory.registerTenant(phoneHash1, wallet1, propertyCode);
+
+        vm.prank(operator);
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.WalletAlreadyRegistered.selector, wallet1));
+        walletFactory.registerLandlord(phoneHash2, wallet1);
+    }
+
+    // ==================== ROLE MANAGEMENT ====================
 
     function test_DeployerHasAdminAndOperatorRoles() public view {
         assertTrue(walletFactory.hasRole(walletFactory.DEFAULT_ADMIN_ROLE(), deployer));
