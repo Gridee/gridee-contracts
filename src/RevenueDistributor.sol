@@ -60,11 +60,10 @@ contract RevenueDistributor is AccessControl {
         platformShareBPS = initialPlatformShareBPS;
     }
 
-    function distributeRevenue(
-        bytes32 propertyCode,
-        address landlordWallet,
-        uint256 totalAmount
-    ) external onlyRole(OPERATOR_ROLE) {
+    function distributeRevenue(bytes32 propertyCode, address landlordWallet, uint256 totalAmount)
+        external
+        onlyRole(OPERATOR_ROLE)
+    {
         if (landlordWallet == address(0)) revert ZeroAddress(landlordWallet);
         if (totalAmount == 0) revert ZeroAmount();
 
@@ -81,14 +80,7 @@ contract RevenueDistributor is AccessControl {
             token.safeTransfer(opsWallet, opsShare);
         }
 
-        emit RevenueDistributed(
-            propertyCode,
-            landlordWallet,
-            totalAmount,
-            landlordShare,
-            platformShare,
-            opsShare
-        );
+        emit RevenueDistributed(propertyCode, landlordWallet, totalAmount, landlordShare, platformShare, opsShare);
     }
 
     function withdraw() external {
@@ -102,10 +94,7 @@ contract RevenueDistributor is AccessControl {
         emit WithdrawalClaimed(msg.sender, amount);
     }
 
-    function updateShares(
-        uint256 newLandlordBPS,
-        uint256 newPlatformBPS
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function updateShares(uint256 newLandlordBPS, uint256 newPlatformBPS) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (newLandlordBPS + newPlatformBPS > 10_000) {
             revert InvalidShares(newLandlordBPS, newPlatformBPS);
         }
@@ -116,10 +105,7 @@ contract RevenueDistributor is AccessControl {
         emit SharesUpdated(newLandlordBPS, newPlatformBPS);
     }
 
-    function updateWallets(
-        address newPlatformWallet,
-        address newOpsWallet
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function updateWallets(address newPlatformWallet, address newOpsWallet) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (newPlatformWallet == address(0)) revert ZeroAddress(newPlatformWallet);
         if (newOpsWallet == address(0)) revert ZeroAddress(newOpsWallet);
 

@@ -30,13 +30,7 @@ contract RevenueDistributorTest is Test {
     function setUp() public {
         grideeToken = new GrideeToken(deployer);
         revenueDistributor = new RevenueDistributor(
-            deployer,
-            operator,
-            address(grideeToken),
-            platformWallet,
-            opsWallet,
-            LANDLORD_BPS,
-            PLATFORM_BPS
+            deployer, operator, address(grideeToken), platformWallet, opsWallet, LANDLORD_BPS, PLATFORM_BPS
         );
 
         vm.startPrank(deployer);
@@ -87,9 +81,7 @@ contract RevenueDistributorTest is Test {
 
     function test_DistributeRevenue_RevertsIfLandlordIsZeroAddress() public {
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(RevenueDistributor.ZeroAddress.selector, address(0))
-        );
+        vm.expectRevert(abi.encodeWithSelector(RevenueDistributor.ZeroAddress.selector, address(0)));
         revenueDistributor.distributeRevenue(propertyCode1, address(0), TOTAL_AMOUNT);
     }
 
@@ -102,11 +94,7 @@ contract RevenueDistributorTest is Test {
     function test_DistributeRevenue_RevertsIfNotOperator() public {
         vm.prank(randomUser);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                randomUser,
-                OPERATOR_ROLE
-            )
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, randomUser, OPERATOR_ROLE)
         );
         revenueDistributor.distributeRevenue(propertyCode1, landlord1, TOTAL_AMOUNT);
     }
@@ -143,9 +131,7 @@ contract RevenueDistributorTest is Test {
 
     function test_Withdraw_RevertsIfNoPendingWithdrawals() public {
         vm.prank(landlord1);
-        vm.expectRevert(
-            abi.encodeWithSelector(RevenueDistributor.NoPendingWithdrawals.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(RevenueDistributor.NoPendingWithdrawals.selector));
         revenueDistributor.withdraw();
     }
 
@@ -177,9 +163,7 @@ contract RevenueDistributorTest is Test {
 
     function test_UpdateShares_RevertsIfSharesExceed10000() public {
         vm.prank(admin);
-        vm.expectRevert(
-            abi.encodeWithSelector(RevenueDistributor.InvalidShares.selector, 6000, 5000)
-        );
+        vm.expectRevert(abi.encodeWithSelector(RevenueDistributor.InvalidShares.selector, 6000, 5000));
         revenueDistributor.updateShares(6000, 5000);
     }
 
@@ -194,9 +178,7 @@ contract RevenueDistributorTest is Test {
         vm.prank(operator);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                operator,
-                DEFAULT_ADMIN_ROLE
+                IAccessControl.AccessControlUnauthorizedAccount.selector, operator, DEFAULT_ADMIN_ROLE
             )
         );
         revenueDistributor.updateShares(2000, 1000);
@@ -217,17 +199,13 @@ contract RevenueDistributorTest is Test {
 
     function test_UpdateWallets_RevertsIfPlatformIsZeroAddress() public {
         vm.prank(admin);
-        vm.expectRevert(
-            abi.encodeWithSelector(RevenueDistributor.ZeroAddress.selector, address(0))
-        );
+        vm.expectRevert(abi.encodeWithSelector(RevenueDistributor.ZeroAddress.selector, address(0)));
         revenueDistributor.updateWallets(address(0), opsWallet);
     }
 
     function test_UpdateWallets_RevertsIfOpsIsZeroAddress() public {
         vm.prank(admin);
-        vm.expectRevert(
-            abi.encodeWithSelector(RevenueDistributor.ZeroAddress.selector, address(0))
-        );
+        vm.expectRevert(abi.encodeWithSelector(RevenueDistributor.ZeroAddress.selector, address(0)));
         revenueDistributor.updateWallets(platformWallet, address(0));
     }
 
@@ -235,9 +213,7 @@ contract RevenueDistributorTest is Test {
         vm.prank(operator);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                operator,
-                DEFAULT_ADMIN_ROLE
+                IAccessControl.AccessControlUnauthorizedAccount.selector, operator, DEFAULT_ADMIN_ROLE
             )
         );
         revenueDistributor.updateWallets(makeAddr("newPlatform"), makeAddr("newOps"));
