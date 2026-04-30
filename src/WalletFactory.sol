@@ -43,11 +43,7 @@ contract WalletFactory is AccessControl {
         emit LandlordRegistered(msg.sender, phoneHash, wallet);
     }
 
-    function registerTenant(
-        bytes32 phoneHash,
-        address wallet,
-        bytes32 propertyCode
-    ) external onlyRole(OPERATOR_ROLE) {
+    function registerTenant(bytes32 phoneHash, address wallet, bytes32 propertyCode) external onlyRole(OPERATOR_ROLE) {
         if (wallet == address(0)) {
             revert ZeroAddress(wallet);
         }

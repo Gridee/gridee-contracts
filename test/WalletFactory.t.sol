@@ -35,9 +35,7 @@ contract WalletFactoryTest is Test {
 
     function test_RegisterLandlord_RevertsIfWalletIsZeroAddress() public {
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(WalletFactory.ZeroAddress.selector, address(0))
-        );
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.ZeroAddress.selector, address(0)));
         walletFactory.registerLandlord(phoneHash1, address(0));
     }
 
@@ -46,9 +44,7 @@ contract WalletFactoryTest is Test {
         walletFactory.registerLandlord(phoneHash1, wallet1);
 
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(WalletFactory.WalletAlreadyRegistered.selector, wallet1)
-        );
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.WalletAlreadyRegistered.selector, wallet1));
         walletFactory.registerLandlord(phoneHash2, wallet1);
     }
 
@@ -57,9 +53,7 @@ contract WalletFactoryTest is Test {
         walletFactory.registerLandlord(phoneHash1, wallet1);
 
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(WalletFactory.LandlordAlreadyRegistered.selector, phoneHash1)
-        );
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.LandlordAlreadyRegistered.selector, phoneHash1));
         walletFactory.registerLandlord(phoneHash1, wallet2);
     }
 
@@ -92,9 +86,7 @@ contract WalletFactoryTest is Test {
 
     function test_RegisterTenant_RevertsIfWalletIsZeroAddress() public {
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(WalletFactory.ZeroAddress.selector, address(0))
-        );
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.ZeroAddress.selector, address(0)));
         walletFactory.registerTenant(phoneHash1, address(0), propertyCode);
     }
 
@@ -103,9 +95,7 @@ contract WalletFactoryTest is Test {
         walletFactory.registerLandlord(phoneHash1, wallet1);
 
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(WalletFactory.WalletAlreadyRegistered.selector, wallet1)
-        );
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.WalletAlreadyRegistered.selector, wallet1));
         walletFactory.registerTenant(phoneHash2, wallet1, propertyCode);
     }
 
@@ -114,17 +104,13 @@ contract WalletFactoryTest is Test {
         walletFactory.registerTenant(phoneHash1, wallet1, propertyCode);
 
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(WalletFactory.TenantAlreadyRegistered.selector, phoneHash1)
-        );
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.TenantAlreadyRegistered.selector, phoneHash1));
         walletFactory.registerTenant(phoneHash1, wallet2, propertyCode);
     }
 
     function test_RegisterTenant_RevertsIfPropertyCodeIsEmpty() public {
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(WalletFactory.EmptyPropertyCode.selector, bytes32(0))
-        );
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.EmptyPropertyCode.selector, bytes32(0)));
         walletFactory.registerTenant(phoneHash1, wallet1, bytes32(0));
     }
 
@@ -171,9 +157,7 @@ contract WalletFactoryTest is Test {
         walletFactory.registerLandlord(phoneHash1, wallet1);
 
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(WalletFactory.WalletAlreadyRegistered.selector, wallet1)
-        );
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.WalletAlreadyRegistered.selector, wallet1));
         walletFactory.registerTenant(phoneHash2, wallet1, propertyCode);
     }
 
@@ -182,9 +166,7 @@ contract WalletFactoryTest is Test {
         walletFactory.registerTenant(phoneHash1, wallet1, propertyCode);
 
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(WalletFactory.WalletAlreadyRegistered.selector, wallet1)
-        );
+        vm.expectRevert(abi.encodeWithSelector(WalletFactory.WalletAlreadyRegistered.selector, wallet1));
         walletFactory.registerLandlord(phoneHash2, wallet1);
     }
 

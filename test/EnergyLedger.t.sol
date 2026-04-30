@@ -54,9 +54,7 @@ contract EnergyLedgerTest is Test {
 
     function test_MintTokens_RevertsIfTenantIsZeroAddress() public {
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(EnergyLedger.ZeroAddress.selector, address(0))
-        );
+        vm.expectRevert(abi.encodeWithSelector(EnergyLedger.ZeroAddress.selector, address(0)));
         energyLedger.mintTokens(address(0), MINT_AMOUNT);
     }
 
@@ -69,11 +67,7 @@ contract EnergyLedgerTest is Test {
     function test_MintTokens_RevertsIfNotOperator() public {
         vm.prank(randomUser);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                randomUser,
-                OPERATOR_ROLE
-            )
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, randomUser, OPERATOR_ROLE)
         );
         energyLedger.mintTokens(tenant1, MINT_AMOUNT);
     }
@@ -103,9 +97,7 @@ contract EnergyLedgerTest is Test {
 
     function test_DeductTokens_RevertsIfTenantIsZeroAddress() public {
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(EnergyLedger.ZeroAddress.selector, address(0))
-        );
+        vm.expectRevert(abi.encodeWithSelector(EnergyLedger.ZeroAddress.selector, address(0)));
         energyLedger.deductTokens(address(0), DEDUCT_AMOUNT);
     }
 
@@ -124,26 +116,14 @@ contract EnergyLedgerTest is Test {
 
         vm.prank(operator);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                EnergyLedger.InsufficientBalance.selector,
-                tenant1,
-                MINT_AMOUNT,
-                MINT_AMOUNT + 1
-            )
+            abi.encodeWithSelector(EnergyLedger.InsufficientBalance.selector, tenant1, MINT_AMOUNT, MINT_AMOUNT + 1)
         );
         energyLedger.deductTokens(tenant1, MINT_AMOUNT + 1);
     }
 
     function test_DeductTokens_RevertsIfNoBalance() public {
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                EnergyLedger.InsufficientBalance.selector,
-                tenant1,
-                0,
-                DEDUCT_AMOUNT
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(EnergyLedger.InsufficientBalance.selector, tenant1, 0, DEDUCT_AMOUNT));
         energyLedger.deductTokens(tenant1, DEDUCT_AMOUNT);
     }
 
@@ -153,11 +133,7 @@ contract EnergyLedgerTest is Test {
 
         vm.prank(randomUser);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                randomUser,
-                OPERATOR_ROLE
-            )
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, randomUser, OPERATOR_ROLE)
         );
         energyLedger.deductTokens(tenant1, DEDUCT_AMOUNT);
     }
@@ -203,9 +179,7 @@ contract EnergyLedgerTest is Test {
 
     function test_SetCutOff_RevertsIfTenantIsZeroAddress() public {
         vm.prank(admin);
-        vm.expectRevert(
-            abi.encodeWithSelector(EnergyLedger.ZeroAddress.selector, address(0))
-        );
+        vm.expectRevert(abi.encodeWithSelector(EnergyLedger.ZeroAddress.selector, address(0)));
         energyLedger.setCutOff(address(0), true);
     }
 
@@ -213,9 +187,7 @@ contract EnergyLedgerTest is Test {
         vm.prank(operator);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                operator,
-                DEFAULT_ADMIN_ROLE
+                IAccessControl.AccessControlUnauthorizedAccount.selector, operator, DEFAULT_ADMIN_ROLE
             )
         );
         energyLedger.setCutOff(tenant1, true);
