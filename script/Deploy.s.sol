@@ -40,13 +40,7 @@ contract Deploy is Script {
 
         console.log("Deploying RevenueDistributor...");
         RevenueDistributor revenueDistributor = new RevenueDistributor(
-            deployer,
-            operator,
-            address(token),
-            platformWallet,
-            opsWallet,
-            landlordShareBPS,
-            platformShareBPS
+            deployer, operator, address(token), platformWallet, opsWallet, landlordShareBPS, platformShareBPS
         );
         console.log("RevenueDistributor deployed:", address(revenueDistributor));
 
