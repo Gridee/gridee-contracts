@@ -1,9 +1,10 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
-contract WalletFactory is AccessControl {
+contract WalletFactory is AccessControl, Pausable {
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
     mapping(bytes32 => address) public landlordWallets;
@@ -26,7 +27,7 @@ contract WalletFactory is AccessControl {
         _grantRole(OPERATOR_ROLE, initialOperator);
     }
 
-    function registerLandlord(bytes32 phoneHash, address wallet) external onlyRole(OPERATOR_ROLE) {
+    function registerLandlord(bytes32 phoneHash, address wallet) external onlyRole(OPERATOR_ROLE) whenNotPaused {
         if (wallet == address(0)) {
             revert ZeroAddress(wallet);
         }
@@ -43,7 +44,7 @@ contract WalletFactory is AccessControl {
         emit LandlordRegistered(msg.sender, phoneHash, wallet);
     }
 
-    function registerTenant(bytes32 phoneHash, address wallet, bytes32 propertyCode) external onlyRole(OPERATOR_ROLE) {
+    function registerTenant(bytes32 phoneHash, address wallet, bytes32 propertyCode) external onlyRole(OPERATOR_ROLE) whenNotPaused {
         if (wallet == address(0)) {
             revert ZeroAddress(wallet);
         }
@@ -78,5 +79,13 @@ contract WalletFactory is AccessControl {
 
     function isWalletRegistered(address wallet) external view returns (bool) {
         return walletRegistered[wallet];
+    }
+
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _unpause();
     }
 }

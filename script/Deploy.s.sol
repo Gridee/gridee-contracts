@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
 import {Script} from "forge-std/Script.sol";
@@ -19,6 +19,10 @@ contract Deploy is Script {
 
         uint256 landlordShareBPS = vm.envUint("LANDLORD_SHARE_BPS");
         uint256 platformShareBPS = vm.envUint("PLATFORM_SHARE_BPS");
+
+        if (landlordShareBPS + platformShareBPS > 10_000) {
+            revert("LANDLORD_SHARE_BPS + PLATFORM_SHARE_BPS must not exceed 10000");
+        }
 
         vm.startBroadcast(deployerPrivateKey);
 
@@ -51,6 +55,19 @@ contract Deploy is Script {
         token.grantRole(token.OPERATOR_ROLE(), address(revenueDistributor));
 
         vm.stopBroadcast();
+
+        console.log("\n========== RENOUNCING DEFAULT_ADMIN_ROLE ==========");
+        vm.startBroadcast(deployerPrivateKey);
+
+        token.renounceRole(token.DEFAULT_ADMIN_ROLE(), deployer);
+        walletFactory.renounceRole(walletFactory.DEFAULT_ADMIN_ROLE(), deployer);
+        propertyRegistry.renounceRole(propertyRegistry.DEFAULT_ADMIN_ROLE(), deployer);
+        energyLedger.renounceRole(energyLedger.DEFAULT_ADMIN_ROLE(), deployer);
+        revenueDistributor.renounceRole(revenueDistributor.DEFAULT_ADMIN_ROLE(), deployer);
+
+        vm.stopBroadcast();
+
+        console.log("Deployer DEFAULT_ADMIN_ROLE renounced on all contracts.");
 
         console.log("\n========== DEPLOYMENT COMPLETE ==========");
         console.log("GRIDEETOKEN:", address(token));

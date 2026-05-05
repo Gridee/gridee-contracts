@@ -1,11 +1,13 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
-contract RevenueDistributor is AccessControl {
+contract RevenueDistributor is AccessControl, ReentrancyGuard, Pausable {
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
     using SafeERC20 for IERC20;
@@ -13,8 +15,8 @@ contract RevenueDistributor is AccessControl {
     IERC20 public token;
     address public platformWallet;
     address public opsWallet;
-    uint256 public landlordShareBPS;
-    uint256 public platformShareBPS;
+    uint16 public landlordShareBPS;
+    uint16 public platformShareBPS;
 
     mapping(address => uint256) public pendingWithdrawals;
 
@@ -35,6 +37,7 @@ contract RevenueDistributor is AccessControl {
     error InvalidShares(uint256 landlordBPS, uint256 platformBPS);
     error NoPendingWithdrawals();
     error TransferFailed();
+    error NotPropertyLandlord(address wallet, bytes32 propertyCode);
 
     constructor(
         address deployer,
@@ -48,6 +51,9 @@ contract RevenueDistributor is AccessControl {
         if (tokenAddress == address(0)) revert ZeroAddress(tokenAddress);
         if (platformWalletAddress == address(0)) revert ZeroAddress(platformWalletAddress);
         if (opsWalletAddress == address(0)) revert ZeroAddress(opsWalletAddress);
+        if (initialLandlordShareBPS + initialPlatformShareBPS > 10_000) {
+            revert InvalidShares(initialLandlordShareBPS, initialPlatformShareBPS);
+        }
 
         _grantRole(DEFAULT_ADMIN_ROLE, deployer);
         _grantRole(OPERATOR_ROLE, deployer);
@@ -56,13 +62,14 @@ contract RevenueDistributor is AccessControl {
         token = IERC20(tokenAddress);
         platformWallet = platformWalletAddress;
         opsWallet = opsWalletAddress;
-        landlordShareBPS = initialLandlordShareBPS;
-        platformShareBPS = initialPlatformShareBPS;
+        landlordShareBPS = uint16(initialLandlordShareBPS);
+        platformShareBPS = uint16(initialPlatformShareBPS);
     }
 
     function distributeRevenue(bytes32 propertyCode, address landlordWallet, uint256 totalAmount)
         external
         onlyRole(OPERATOR_ROLE)
+        whenNotPaused
     {
         if (landlordWallet == address(0)) revert ZeroAddress(landlordWallet);
         if (totalAmount == 0) revert ZeroAmount();
@@ -83,7 +90,7 @@ contract RevenueDistributor is AccessControl {
         emit RevenueDistributed(propertyCode, landlordWallet, totalAmount, landlordShare, platformShare, opsShare);
     }
 
-    function withdraw() external {
+    function withdraw() external nonReentrant whenNotPaused {
         uint256 amount = pendingWithdrawals[msg.sender];
         if (amount == 0) revert NoPendingWithdrawals();
 
@@ -99,8 +106,8 @@ contract RevenueDistributor is AccessControl {
             revert InvalidShares(newLandlordBPS, newPlatformBPS);
         }
 
-        landlordShareBPS = newLandlordBPS;
-        platformShareBPS = newPlatformBPS;
+        landlordShareBPS = uint16(newLandlordBPS);
+        platformShareBPS = uint16(newPlatformBPS);
 
         emit SharesUpdated(newLandlordBPS, newPlatformBPS);
     }
@@ -113,5 +120,13 @@ contract RevenueDistributor is AccessControl {
         opsWallet = newOpsWallet;
 
         emit WalletsUpdated(newPlatformWallet, newOpsWallet);
+    }
+
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _unpause();
     }
 }

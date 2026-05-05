@@ -1,9 +1,10 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
-contract PropertyRegistry is AccessControl {
+contract PropertyRegistry is AccessControl, Pausable {
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
     enum InvalidParameterMessage {
@@ -34,6 +35,7 @@ contract PropertyRegistry is AccessControl {
     error PropertyNotFound(bytes32 code);
     error PropertyInactive(bytes32 code);
     error ZeroAddress(address value);
+    error UnauthorizedAccess(address sender);
 
     constructor(address deployer, address initialOperator) {
         _grantRole(DEFAULT_ADMIN_ROLE, deployer);
@@ -44,6 +46,7 @@ contract PropertyRegistry is AccessControl {
     function registerProperty(bytes32 code, address landlordWallet, uint8 flatCount, string calldata location)
         external
         onlyRole(OPERATOR_ROLE)
+        whenNotPaused
     {
         if (code == bytes32(0)) {
             revert InvalidParameter("code", InvalidParameterMessage.EmptyString);
@@ -77,6 +80,7 @@ contract PropertyRegistry is AccessControl {
     function updateProperty(bytes32 code, uint8 newFlatCount, string calldata newLocation)
         external
         onlyRole(OPERATOR_ROLE)
+        whenNotPaused
     {
         if (!propertyExists(code)) {
             revert PropertyNotFound(code);
@@ -161,5 +165,11 @@ contract PropertyRegistry is AccessControl {
         return propertyToLandlord[code] != address(0);
     }
 
-    error UnauthorizedAccess(address sender);
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _unpause();
+    }
 }

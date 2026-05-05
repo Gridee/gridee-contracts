@@ -1,15 +1,16 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
 interface IGrideeToken is IERC20 {
     function mint(address to, uint256 amount) external;
     function burn(address account, uint256 amount) external;
 }
 
-contract EnergyLedger is AccessControl {
+contract EnergyLedger is AccessControl, Pausable {
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
     IGrideeToken public token;
@@ -22,6 +23,7 @@ contract EnergyLedger is AccessControl {
     error ZeroAddress(address value);
     error ZeroAmount();
     error InsufficientBalance(address tenant, uint256 balance, uint256 requested);
+    error TenantCutOff(address tenant);
 
     constructor(address deployer, address initialOperator, address tokenAddress) {
         if (tokenAddress == address(0)) {
@@ -35,12 +37,15 @@ contract EnergyLedger is AccessControl {
         token = IGrideeToken(tokenAddress);
     }
 
-    function mintTokens(address tenantWallet, uint256 amount) external onlyRole(OPERATOR_ROLE) {
+    function mintTokens(address tenantWallet, uint256 amount) external onlyRole(OPERATOR_ROLE) whenNotPaused {
         if (tenantWallet == address(0)) {
             revert ZeroAddress(tenantWallet);
         }
         if (amount == 0) {
             revert ZeroAmount();
+        }
+        if (isCutOff[tenantWallet]) {
+            revert TenantCutOff(tenantWallet);
         }
 
         token.mint(tenantWallet, amount);
@@ -48,7 +53,7 @@ contract EnergyLedger is AccessControl {
         emit TokensMinted(tenantWallet, amount);
     }
 
-    function deductTokens(address tenantWallet, uint256 amount) external onlyRole(OPERATOR_ROLE) {
+    function deductTokens(address tenantWallet, uint256 amount) external onlyRole(OPERATOR_ROLE) whenNotPaused {
         if (tenantWallet == address(0)) {
             revert ZeroAddress(tenantWallet);
         }
@@ -78,5 +83,13 @@ contract EnergyLedger is AccessControl {
         isCutOff[tenantWallet] = status;
 
         emit CutOffUpdated(msg.sender, tenantWallet, status);
+    }
+
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _unpause();
     }
 }
