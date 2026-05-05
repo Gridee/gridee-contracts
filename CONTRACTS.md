@@ -6,11 +6,11 @@ All contracts are deployed on **Lisk Sepolia** (Chain ID: 4202) and verified on 
 
 | Contract | Address |
 |---|---|
-| GrideeToken | `0x0739F10e1EACC0Bb9192DDA0B2a01AD7eb040353` |
-| WalletFactory | `0xB53b6a4a2afc53f0e4990f38cD3255bE33f760A5` |
-| PropertyRegistry | `0xe8C680f222502E45bC57c02116DA3c33C6428096` |
-| EnergyLedger | `0xB2aa6e2313dbC21B301412C520dCA9A4CAe98863` |
-| RevenueDistributor | `0xd3400cC7389F7feE425fCbBF847d976B331cB0D5` |
+| GrideeToken | `0x8D7fE0804425cfc0B827a88c5aD932749f92f096` |
+| WalletFactory | `0x18D5E4334986853C89f9A2c5e2da7a1DBb6347ce` |
+| PropertyRegistry | `0x7805B5941B259C673E1694240c4b0cBA029f345B` |
+| EnergyLedger | `0x8911F55c05Ab28FF4bDade40aC78Ba3cb6BD204a` |
+| RevenueDistributor | `0xaC760BDa41Ce51ff1adA67FD97A2C6502DB76c02` |
 
 ## Architecture
 
@@ -24,7 +24,14 @@ WhatsApp/USSD → Backend → Blockchain
                             └── RevenueDistributor (revenue split)
 ```
 
-All contracts use OpenZeppelin's `AccessControl`. The backend interacts with contracts via `OPERATOR_ROLE`. The deployer holds `DEFAULT_ADMIN_ROLE` for governance functions.
+All contracts use OpenZeppelin's `AccessControl`. The backend interacts with contracts via `OPERATOR_ROLE`. The deployer's `DEFAULT_ADMIN_ROLE` is renounced immediately after deployment — only the designated `admin` address (granted before renunciation) can perform admin functions like pausing or updating shares.
+
+## Security Features
+
+- **Pausable**: All contracts can be paused by `DEFAULT_ADMIN_ROLE` to halt operations during emergencies
+- **ReentrancyGuard**: `RevenueDistributor.withdraw()` is protected against reentrancy attacks
+- **Admin Renunciation**: Deployer renounces `DEFAULT_ADMIN_ROLE` post-deployment; a separate admin address is granted the role beforehand
+- **isCutOff enforcement**: `EnergyLedger.mintTokens()` reverts if the tenant is cut off
 
 ---
 
@@ -161,7 +168,7 @@ Manages token minting and burning for energy transactions. When a tenant pays fo
 ### Functions
 
 #### `mintTokens(address tenantWallet, uint256 amount)` — `OPERATOR_ROLE`
-Mints GRD tokens to a tenant's wallet after payment confirmation.
+Mints GRD tokens to a tenant's wallet after payment confirmation. Reverts if the tenant is cut off (`isCutOff` is true).
 
 **Parameters:**
 - `tenantWallet` — the tenant's wallet address
@@ -198,7 +205,7 @@ Returns the GrideeToken contract interface.
 
 ### What It Does
 
-Splits revenue from tenant payments between the landlord, platform, and operations reserve. When a payment is confirmed, `distributeRevenue` is called with the total NGN-equivalent GRD amount. The landlord's share accumulates in `pendingWithdrawals` (pull pattern), while the platform and ops shares are transferred immediately.
+Splits revenue from tenant payments between the landlord, platform, and operations reserve. When a payment is confirmed, `distributeRevenue` is called with the total NGN-equivalent GRD amount. The landlord's share accumulates in `pendingWithdrawals` (pull pattern), while the platform and ops shares are transferred immediately. Protected by `ReentrancyGuard` on withdrawals and `Pausable` for emergency stops.
 
 ### Default Split (Basis Points)
 
@@ -221,7 +228,7 @@ Distributes a payment across landlord, platform, and ops shares.
 **Emits:** `RevenueDistributed(propertyCode, landlord, totalAmount, landlordShare, platformShare, opsShare)`
 
 #### `withdraw()` — public
-Allows a landlord to withdraw their accumulated GRD share. Transfers the full `pendingWithdrawals` balance to `msg.sender` and resets it to zero.
+Allows a landlord to withdraw their accumulated GRD share. Protected by `ReentrancyGuard`. Transfers the full `pendingWithdrawals` balance to `msg.sender` and resets it to zero.
 
 **Emits:** `WithdrawalClaimed(landlord, amount)`
 
@@ -275,7 +282,10 @@ async function processPayment(tenantWallet: string, grdAmount: bigint, propertyC
   // 1. Mint tokens to tenant
   await energyLedger.mintTokens(tenantWallet, grdAmount);
 
-  // 2. Distribute revenue
+  // 2. Mint tokens to RevenueDistributor (it needs balance to distribute platform/ops shares)
+  await token.mint(revenueDistributorAddress, grdAmount);
+
+  // 3. Distribute revenue (pulls from RevenueDistributor balance)
   await revenueDistributor.distributeRevenue(
     ethers.encodeBytes32String(propertyCode),
     landlordWallet,

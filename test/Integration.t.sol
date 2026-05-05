@@ -21,6 +21,7 @@ contract IntegrationTest is Test {
     address tenant = address(4);
     address platformWallet = address(5);
     address opsWallet = address(6);
+    address admin = address(7);
 
     bytes32 landlordPhoneHash = keccak256(abi.encodePacked("+2348000000001"));
     bytes32 tenantPhoneHash = keccak256(abi.encodePacked("+2348000000002"));
@@ -38,6 +39,13 @@ contract IntegrationTest is Test {
 
         token.grantRole(token.OPERATOR_ROLE(), address(energyLedger));
         token.grantRole(token.OPERATOR_ROLE(), address(revenueDistributor));
+        token.grantRole(token.OPERATOR_ROLE(), operator);
+
+        token.grantRole(token.DEFAULT_ADMIN_ROLE(), admin);
+        walletFactory.grantRole(walletFactory.DEFAULT_ADMIN_ROLE(), admin);
+        propertyRegistry.grantRole(propertyRegistry.DEFAULT_ADMIN_ROLE(), admin);
+        energyLedger.grantRole(energyLedger.DEFAULT_ADMIN_ROLE(), admin);
+        revenueDistributor.grantRole(revenueDistributor.DEFAULT_ADMIN_ROLE(), admin);
 
         token.renounceRole(token.DEFAULT_ADMIN_ROLE(), deployer);
         walletFactory.renounceRole(walletFactory.DEFAULT_ADMIN_ROLE(), deployer);
@@ -59,6 +67,8 @@ contract IntegrationTest is Test {
         energyLedger.mintTokens(tenant, mintAmount);
 
         assertEq(token.balanceOf(tenant), mintAmount);
+
+        token.mint(address(revenueDistributor), mintAmount);
 
         revenueDistributor.distributeRevenue(propertyCode, landlord, mintAmount);
 
@@ -90,7 +100,7 @@ contract IntegrationTest is Test {
         energyLedger.mintTokens(tenant, 100 * 1e18);
         vm.stopPrank();
 
-        vm.prank(deployer);
+        vm.prank(admin);
         energyLedger.setCutOff(tenant, true);
 
         vm.prank(operator);
@@ -99,15 +109,15 @@ contract IntegrationTest is Test {
     }
 
     function testPauseStopsOperations() public {
-        vm.prank(deployer);
-        token.pause();
+        vm.prank(admin);
+        energyLedger.pause();
 
         vm.prank(operator);
-        vm.expectRevert("Pausable: paused");
+        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
         energyLedger.mintTokens(tenant, 100 * 1e18);
 
-        vm.prank(deployer);
-        token.unpause();
+        vm.prank(admin);
+        energyLedger.unpause();
 
         vm.prank(operator);
         energyLedger.mintTokens(tenant, 100 * 1e18);
