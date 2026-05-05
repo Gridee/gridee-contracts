@@ -44,7 +44,11 @@ contract WalletFactory is AccessControl, Pausable {
         emit LandlordRegistered(msg.sender, phoneHash, wallet);
     }
 
-    function registerTenant(bytes32 phoneHash, address wallet, bytes32 propertyCode) external onlyRole(OPERATOR_ROLE) whenNotPaused {
+    function registerTenant(bytes32 phoneHash, address wallet, bytes32 propertyCode)
+        external
+        onlyRole(OPERATOR_ROLE)
+        whenNotPaused
+    {
         if (wallet == address(0)) {
             revert ZeroAddress(wallet);
         }

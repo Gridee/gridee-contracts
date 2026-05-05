@@ -33,9 +33,8 @@ contract IntegrationTest is Test {
         walletFactory = new WalletFactory(deployer, operator);
         propertyRegistry = new PropertyRegistry(deployer, operator);
         energyLedger = new EnergyLedger(deployer, operator, address(token));
-        revenueDistributor = new RevenueDistributor(
-            deployer, operator, address(token), platformWallet, opsWallet, 1800, 900
-        );
+        revenueDistributor =
+            new RevenueDistributor(deployer, operator, address(token), platformWallet, opsWallet, 1800, 900);
 
         token.grantRole(token.OPERATOR_ROLE(), address(energyLedger));
         token.grantRole(token.OPERATOR_ROLE(), address(revenueDistributor));
@@ -127,9 +126,7 @@ contract IntegrationTest is Test {
 
     function testDeductInsufficientBalance() public {
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSignature("InsufficientBalance(address,uint256,uint256)", tenant, 0, 100 * 1e18)
-        );
+        vm.expectRevert(abi.encodeWithSignature("InsufficientBalance(address,uint256,uint256)", tenant, 0, 100 * 1e18));
         energyLedger.deductTokens(tenant, 100 * 1e18);
     }
 
