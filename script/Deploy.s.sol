@@ -43,9 +43,6 @@ contract Deploy is Script {
         console.log("\nGranting BURNER_ROLE to EnergyLedger on GrideeToken...");
         token.grantRole(token.BURNER_ROLE(), address(energyLedger));
 
-        console.log("Granting OPERATOR_ROLE to EnergyLedger on GrideeToken...");
-        token.grantRole(token.OPERATOR_ROLE(), operator);
-
         vm.stopBroadcast();
 
         console.log("\n========== RENOUNCING DEFAULT_ADMIN_ROLE ==========");

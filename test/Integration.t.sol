@@ -38,7 +38,6 @@ contract IntegrationTest is Test {
         energyLedger = new EnergyLedger(deployer, operator, address(token));
 
         token.grantRole(token.BURNER_ROLE(), address(energyLedger));
-        token.grantRole(token.OPERATOR_ROLE(), operator);
 
         token.grantRole(token.DEFAULT_ADMIN_ROLE(), admin);
         propertyRegistry.grantRole(propertyRegistry.DEFAULT_ADMIN_ROLE(), admin);

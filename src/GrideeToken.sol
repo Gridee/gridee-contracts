@@ -11,7 +11,6 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 contract GrideeToken is ERC20, AccessControl, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
     IERC20 public usdc;
@@ -63,7 +62,6 @@ contract GrideeToken is ERC20, AccessControl, Pausable, ReentrancyGuard {
         }
 
         _grantRole(DEFAULT_ADMIN_ROLE, deployer);
-        _grantRole(OPERATOR_ROLE, deployer);
 
         usdc = IERC20(usdcAddress);
         platformWallet = platformWalletAddress;

@@ -6,9 +6,9 @@ All contracts are deployed on **Base Sepolia** (Chain ID: 84532) and verified on
 
 | Contract | Address | Blockscout |
 |---|---|---|
-| GrideeToken | `0xCEc9F3a5131f3DD154Bc7135a70a95f4fa3ceA82` | [View](https://base-sepolia.blockscout.com/address/0xCEc9F3a5131f3DD154Bc7135a70a95f4fa3ceA82) |
-| PropertyRegistry | `0x22454cA4d7e45549DA29b2ccD331D57df0Efa549` | [View](https://base-sepolia.blockscout.com/address/0x22454cA4d7e45549DA29b2ccD331D57df0Efa549) |
-| EnergyLedger | `0x24f5A816cb1f9e0fDA738aac05fB9bB180075327` | [View](https://base-sepolia.blockscout.com/address/0x24f5A816cb1f9e0fDA738aac05fB9bB180075327) |
+| GrideeToken | `0x3eD2b2A5546c90D9A78984986610E5A3187f1C51` | [View](https://base-sepolia.blockscout.com/address/0x3eD2b2A5546c90D9A78984986610E5A3187f1C51) |
+| PropertyRegistry | `0x58E880c6129d6288Bb21006765376Bc2cd6024b0` | [View](https://base-sepolia.blockscout.com/address/0x58E880c6129d6288Bb21006765376Bc2cd6024b0) |
+| EnergyLedger | `0xc06A7d132784438c2fa2Dc235D8d0Ece48d54233` | [View](https://base-sepolia.blockscout.com/address/0xc06A7d132784438c2fa2Dc235D8d0Ece48d54233) |
 
 ### USDC on Base Sepolia
 
