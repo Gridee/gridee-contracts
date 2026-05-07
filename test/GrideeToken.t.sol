@@ -135,7 +135,9 @@ contract GrideeTokenTest is Test {
 
         vm.prank(tenant);
         vm.expectEmit(true, true, false, true);
-        emit GrideeToken.TokensPurchased(tenant, landlord, usdcAmount, expectedGRD, landlordShare, platformShare, opsShare);
+        emit GrideeToken.TokensPurchased(
+            tenant, landlord, usdcAmount, expectedGRD, landlordShare, platformShare, opsShare
+        );
         grideeToken.purchaseTokens(usdcAmount, landlord);
     }
 

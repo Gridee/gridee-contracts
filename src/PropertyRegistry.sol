@@ -72,8 +72,13 @@ contract PropertyRegistry is AccessControl, Pausable {
             revert DuplicatePropertyCode(msg.sender, code);
         }
 
-        Property memory newProperty =
-            Property({flatCount: flatCount, occupiedFlats: 0, location: location, isActive: true, createdAt: uint40(block.timestamp)});
+        Property memory newProperty = Property({
+            flatCount: flatCount,
+            occupiedFlats: 0,
+            location: location,
+            isActive: true,
+            createdAt: uint40(block.timestamp)
+        });
 
         properties[code] = newProperty;
         propertyToLandlord[code] = landlordWallet;
@@ -173,11 +178,7 @@ contract PropertyRegistry is AccessControl, Pausable {
         return propertyToLandlord[code] != address(0);
     }
 
-    function registerTenant(bytes32 propertyCode, address tenantWallet)
-        external
-        onlyRole(OPERATOR_ROLE)
-        whenNotPaused
-    {
+    function registerTenant(bytes32 propertyCode, address tenantWallet) external onlyRole(OPERATOR_ROLE) whenNotPaused {
         if (!propertyExists(propertyCode)) {
             revert PropertyNotFound(propertyCode);
         }

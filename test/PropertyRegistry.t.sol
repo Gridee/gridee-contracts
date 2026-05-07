@@ -473,9 +473,7 @@ contract PropertyRegistryTest is Test {
         address tenant1 = makeAddr("tenant1");
 
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(PropertyRegistry.TenantNotRegistered.selector, tenant1, PROPERTY_CODE1)
-        );
+        vm.expectRevert(abi.encodeWithSelector(PropertyRegistry.TenantNotRegistered.selector, tenant1, PROPERTY_CODE1));
         propertyRegistry.deregisterTenant(PROPERTY_CODE1, tenant1);
     }
 
