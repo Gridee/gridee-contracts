@@ -15,6 +15,7 @@ contract PropertyRegistry is AccessControl, Pausable {
 
     struct Property {
         uint8 flatCount;
+        uint8 occupiedFlats;
         string location;
         bool isActive;
         uint40 createdAt;
@@ -24,11 +25,15 @@ contract PropertyRegistry is AccessControl, Pausable {
     mapping(bytes32 => address) public propertyToLandlord;
     mapping(address => mapping(uint256 => bytes32)) private landlordToPropertyCodes;
     mapping(address => uint256) public landlordPropertyCount;
+    mapping(bytes32 => mapping(address => bool)) public isTenantRegistered;
+    mapping(address => bytes32) public tenantToProperty;
 
     event PropertyRegistered(address indexed operator, address indexed landlord, bytes32 code, uint256 flatCount);
     event PropertyDeactivated(address indexed admin, bytes32 code, address landlord);
     event PropertyFlatCountUpdated(bytes32 code, uint8 oldFlatCount, uint8 newFlatCount);
     event PropertyLocationUpdated(bytes32 code, string oldLocation, string newLocation);
+    event TenantRegistered(address indexed operator, bytes32 propertyCode, address tenant);
+    event TenantDeregistered(address indexed operator, bytes32 propertyCode, address tenant);
 
     error DuplicatePropertyCode(address sender, bytes32 code);
     error InvalidParameter(string parameter, InvalidParameterMessage message);
@@ -36,6 +41,9 @@ contract PropertyRegistry is AccessControl, Pausable {
     error PropertyInactive(bytes32 code);
     error ZeroAddress(address value);
     error UnauthorizedAccess(address sender);
+    error PropertyAtCapacity(bytes32 code, uint8 maxFlats);
+    error TenantAlreadyRegistered(address tenant);
+    error TenantNotRegistered(address tenant, bytes32 propertyCode);
 
     constructor(address deployer, address initialOperator) {
         _grantRole(DEFAULT_ADMIN_ROLE, deployer);
@@ -65,7 +73,7 @@ contract PropertyRegistry is AccessControl, Pausable {
         }
 
         Property memory newProperty =
-            Property({flatCount: flatCount, location: location, isActive: true, createdAt: uint40(block.timestamp)});
+            Property({flatCount: flatCount, occupiedFlats: 0, location: location, isActive: true, createdAt: uint40(block.timestamp)});
 
         properties[code] = newProperty;
         propertyToLandlord[code] = landlordWallet;
@@ -163,6 +171,70 @@ contract PropertyRegistry is AccessControl, Pausable {
 
     function propertyExists(bytes32 code) internal view returns (bool) {
         return propertyToLandlord[code] != address(0);
+    }
+
+    function registerTenant(bytes32 propertyCode, address tenantWallet)
+        external
+        onlyRole(OPERATOR_ROLE)
+        whenNotPaused
+    {
+        if (!propertyExists(propertyCode)) {
+            revert PropertyNotFound(propertyCode);
+        }
+
+        Property storage property = properties[propertyCode];
+
+        if (!property.isActive) {
+            revert PropertyInactive(propertyCode);
+        }
+
+        if (isTenantRegistered[propertyCode][tenantWallet]) {
+            revert TenantAlreadyRegistered(tenantWallet);
+        }
+
+        if (property.occupiedFlats >= property.flatCount) {
+            revert PropertyAtCapacity(propertyCode, property.flatCount);
+        }
+
+        property.occupiedFlats++;
+        isTenantRegistered[propertyCode][tenantWallet] = true;
+        tenantToProperty[tenantWallet] = propertyCode;
+
+        emit TenantRegistered(msg.sender, propertyCode, tenantWallet);
+    }
+
+    function deregisterTenant(bytes32 propertyCode, address tenantWallet)
+        external
+        onlyRole(OPERATOR_ROLE)
+        whenNotPaused
+    {
+        if (!propertyExists(propertyCode)) {
+            revert PropertyNotFound(propertyCode);
+        }
+
+        if (!isTenantRegistered[propertyCode][tenantWallet]) {
+            revert TenantNotRegistered(tenantWallet, propertyCode);
+        }
+
+        properties[propertyCode].occupiedFlats--;
+        isTenantRegistered[propertyCode][tenantWallet] = false;
+
+        if (tenantToProperty[tenantWallet] == propertyCode) {
+            delete tenantToProperty[tenantWallet];
+        }
+
+        emit TenantDeregistered(msg.sender, propertyCode, tenantWallet);
+    }
+
+    function getAvailableFlats(bytes32 propertyCode) external view returns (uint8) {
+        if (!propertyExists(propertyCode)) {
+            revert PropertyNotFound(propertyCode);
+        }
+        return properties[propertyCode].flatCount - properties[propertyCode].occupiedFlats;
+    }
+
+    function getTenantProperty(address tenantWallet) external view returns (bytes32) {
+        return tenantToProperty[tenantWallet];
     }
 
     function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {

@@ -3,17 +3,15 @@ pragma solidity ^0.8.30;
 
 import {Test} from "forge-std/Test.sol";
 import {GrideeToken} from "../src/GrideeToken.sol";
-import {WalletFactory} from "../src/WalletFactory.sol";
 import {PropertyRegistry} from "../src/PropertyRegistry.sol";
 import {EnergyLedger} from "../src/EnergyLedger.sol";
-import {RevenueDistributor} from "../src/RevenueDistributor.sol";
+import {MockUSDC} from "./MockUSDC.sol";
 
 contract IntegrationTest is Test {
     GrideeToken public token;
-    WalletFactory public walletFactory;
     PropertyRegistry public propertyRegistry;
     EnergyLedger public energyLedger;
-    RevenueDistributor public revenueDistributor;
+    MockUSDC public usdc;
 
     address deployer = address(1);
     address operator = address(2);
@@ -23,88 +21,93 @@ contract IntegrationTest is Test {
     address opsWallet = address(6);
     address admin = address(7);
 
-    bytes32 landlordPhoneHash = keccak256(abi.encodePacked("+2348000000001"));
-    bytes32 tenantPhoneHash = keccak256(abi.encodePacked("+2348000000002"));
     bytes32 propertyCode = keccak256(abi.encodePacked("GRD-LAG-0042"));
+
+    uint256 constant PRICE_PER_GRD = 10_000;
+    uint256 constant LANDLORD_SHARE_BPS = 1800;
+    uint256 constant PLATFORM_SHARE_BPS = 900;
 
     function setUp() public {
         vm.startPrank(deployer);
-        token = new GrideeToken(deployer);
-        walletFactory = new WalletFactory(deployer, operator);
+
+        usdc = new MockUSDC();
+        token = new GrideeToken(
+            deployer, address(usdc), platformWallet, opsWallet, PRICE_PER_GRD, LANDLORD_SHARE_BPS, PLATFORM_SHARE_BPS
+        );
         propertyRegistry = new PropertyRegistry(deployer, operator);
         energyLedger = new EnergyLedger(deployer, operator, address(token));
-        revenueDistributor =
-            new RevenueDistributor(deployer, operator, address(token), platformWallet, opsWallet, 1800, 900);
 
-        token.grantRole(token.OPERATOR_ROLE(), address(energyLedger));
-        token.grantRole(token.OPERATOR_ROLE(), address(revenueDistributor));
+        token.grantRole(token.BURNER_ROLE(), address(energyLedger));
         token.grantRole(token.OPERATOR_ROLE(), operator);
 
         token.grantRole(token.DEFAULT_ADMIN_ROLE(), admin);
-        walletFactory.grantRole(walletFactory.DEFAULT_ADMIN_ROLE(), admin);
         propertyRegistry.grantRole(propertyRegistry.DEFAULT_ADMIN_ROLE(), admin);
         energyLedger.grantRole(energyLedger.DEFAULT_ADMIN_ROLE(), admin);
-        revenueDistributor.grantRole(revenueDistributor.DEFAULT_ADMIN_ROLE(), admin);
 
         token.renounceRole(token.DEFAULT_ADMIN_ROLE(), deployer);
-        walletFactory.renounceRole(walletFactory.DEFAULT_ADMIN_ROLE(), deployer);
         propertyRegistry.renounceRole(propertyRegistry.DEFAULT_ADMIN_ROLE(), deployer);
         energyLedger.renounceRole(energyLedger.DEFAULT_ADMIN_ROLE(), deployer);
-        revenueDistributor.renounceRole(revenueDistributor.DEFAULT_ADMIN_ROLE(), deployer);
+
         vm.stopPrank();
     }
 
     function testFullFlow() public {
         vm.startPrank(operator);
-
-        walletFactory.registerLandlord(landlordPhoneHash, landlord);
-        walletFactory.registerTenant(tenantPhoneHash, tenant, propertyCode);
-
         propertyRegistry.registerProperty(propertyCode, landlord, 10, "Surulere, Lagos");
-
-        uint256 mintAmount = 1000 * 1e18;
-        energyLedger.mintTokens(tenant, mintAmount);
-
-        assertEq(token.balanceOf(tenant), mintAmount);
-
-        token.mint(address(revenueDistributor), mintAmount);
-
-        revenueDistributor.distributeRevenue(propertyCode, landlord, mintAmount);
-
-        uint256 landlordShare = (mintAmount * 1800) / 10_000;
-        uint256 platformShare = (mintAmount * 900) / 10_000;
-        uint256 opsShare = mintAmount - landlordShare - platformShare;
-
-        assertEq(revenueDistributor.pendingWithdrawals(landlord), landlordShare);
-        assertEq(token.balanceOf(platformWallet), platformShare);
-        assertEq(token.balanceOf(opsWallet), opsShare);
-
+        propertyRegistry.registerTenant(propertyCode, tenant);
         vm.stopPrank();
 
-        vm.prank(landlord);
-        revenueDistributor.withdraw();
+        uint256 usdcAmount = 100 * 1e6;
+        usdc.mint(tenant, usdcAmount);
 
-        assertEq(token.balanceOf(landlord), landlordShare);
-        assertEq(revenueDistributor.pendingWithdrawals(landlord), 0);
+        vm.prank(tenant);
+        usdc.approve(address(token), usdcAmount);
+
+        vm.prank(tenant);
+        token.depositUSDC(usdcAmount);
+
+        vm.prank(tenant);
+        token.purchaseTokens(usdcAmount, landlord);
+
+        uint256 expectedGRD = (usdcAmount * 1e18) / PRICE_PER_GRD;
+        assertEq(token.balanceOf(tenant), expectedGRD);
+        assertEq(token.tenantUSDCBalance(tenant), 0);
+
+        uint256 landlordShare = (usdcAmount * LANDLORD_SHARE_BPS) / 10_000;
+        uint256 platformShare = (usdcAmount * PLATFORM_SHARE_BPS) / 10_000;
+        uint256 opsShare = usdcAmount - landlordShare - platformShare;
+
+        assertEq(usdc.balanceOf(landlord), landlordShare);
+        assertEq(usdc.balanceOf(platformWallet), platformShare);
+        assertEq(usdc.balanceOf(opsWallet), opsShare);
+        assertEq(usdc.balanceOf(address(token)), 0);
 
         uint256 deductAmount = 500 * 1e18;
         vm.prank(operator);
         energyLedger.deductTokens(tenant, deductAmount);
 
-        assertEq(token.balanceOf(tenant), mintAmount - deductAmount);
+        assertEq(token.balanceOf(tenant), expectedGRD - deductAmount);
     }
 
-    function testCutOffPreventsMinting() public {
-        vm.startPrank(operator);
-        energyLedger.mintTokens(tenant, 100 * 1e18);
-        vm.stopPrank();
+    function testCutOffPreventsDeduction() public {
+        uint256 usdcAmount = 100 * 1e6;
+        usdc.mint(tenant, usdcAmount);
+
+        vm.prank(tenant);
+        usdc.approve(address(token), usdcAmount);
+
+        vm.prank(tenant);
+        token.depositUSDC(usdcAmount);
+
+        vm.prank(tenant);
+        token.purchaseTokens(usdcAmount, landlord);
 
         vm.prank(admin);
         energyLedger.setCutOff(tenant, true);
 
         vm.prank(operator);
         vm.expectRevert(abi.encodeWithSignature("TenantCutOff(address)", tenant));
-        energyLedger.mintTokens(tenant, 100 * 1e18);
+        energyLedger.deductTokens(tenant, 100 * 1e18);
     }
 
     function testPauseStopsOperations() public {
@@ -112,27 +115,150 @@ contract IntegrationTest is Test {
         energyLedger.pause();
 
         vm.prank(operator);
-        vm.expectRevert(abi.encodeWithSignature("EnforcedPause()"));
-        energyLedger.mintTokens(tenant, 100 * 1e18);
+        vm.expectRevert();
+        energyLedger.deductTokens(tenant, 100 * 1e18);
 
         vm.prank(admin);
         energyLedger.unpause();
 
-        vm.prank(operator);
-        energyLedger.mintTokens(tenant, 100 * 1e18);
+        uint256 usdcAmount = 100 * 1e6;
+        usdc.mint(tenant, usdcAmount);
 
-        assertEq(token.balanceOf(tenant), 100 * 1e18);
+        vm.prank(tenant);
+        usdc.approve(address(token), usdcAmount);
+
+        vm.prank(tenant);
+        token.depositUSDC(usdcAmount);
+
+        vm.prank(tenant);
+        token.purchaseTokens(usdcAmount, landlord);
+
+        uint256 expectedGRD = (usdcAmount * 1e18) / PRICE_PER_GRD;
+        assertEq(token.balanceOf(tenant), expectedGRD);
     }
 
     function testDeductInsufficientBalance() public {
         vm.prank(operator);
-        vm.expectRevert(abi.encodeWithSignature("InsufficientBalance(address,uint256,uint256)", tenant, 0, 100 * 1e18));
+        vm.expectRevert(abi.encodeWithSelector(EnergyLedger.InsufficientBalance.selector, tenant, 0, 100 * 1e18));
         energyLedger.deductTokens(tenant, 100 * 1e18);
     }
 
-    function testWithdrawWithNoPending() public {
+    function testTenantCannotTransferTokens() public {
+        uint256 usdcAmount = 100 * 1e6;
+        usdc.mint(tenant, usdcAmount);
+
+        vm.prank(tenant);
+        usdc.approve(address(token), usdcAmount);
+
+        vm.prank(tenant);
+        token.depositUSDC(usdcAmount);
+
+        vm.prank(tenant);
+        token.purchaseTokens(usdcAmount, landlord);
+
+        vm.prank(tenant);
+        vm.expectRevert(GrideeToken.TransferNotAllowed.selector);
+        token.transfer(landlord, 10 * 1e18);
+    }
+
+    function testMultiplePurchasesAccumulateBalance() public {
+        uint256 usdcAmount = 50 * 1e6;
+        usdc.mint(tenant, usdcAmount * 2);
+
+        vm.prank(tenant);
+        usdc.approve(address(token), usdcAmount);
+
+        vm.prank(tenant);
+        token.depositUSDC(usdcAmount);
+
+        vm.prank(tenant);
+        token.purchaseTokens(usdcAmount, landlord);
+
+        uint256 firstGRD = (usdcAmount * 1e18) / PRICE_PER_GRD;
+        assertEq(token.balanceOf(tenant), firstGRD);
+
+        vm.prank(tenant);
+        usdc.approve(address(token), usdcAmount);
+
+        vm.prank(tenant);
+        token.depositUSDC(usdcAmount);
+
+        vm.prank(tenant);
+        token.purchaseTokens(usdcAmount, landlord);
+
+        assertEq(token.balanceOf(tenant), firstGRD * 2);
+    }
+
+    function testPropertyRegistryIntegration() public {
+        vm.prank(operator);
+        propertyRegistry.registerProperty(propertyCode, landlord, 10, "Surulere, Lagos");
+
         vm.prank(landlord);
-        vm.expectRevert("NoPendingWithdrawals()");
-        revenueDistributor.withdraw();
+        PropertyRegistry.Property memory prop = propertyRegistry.getProperty(propertyCode);
+
+        assertTrue(prop.isActive);
+        assertEq(prop.flatCount, 10);
+        assertEq(prop.location, "Surulere, Lagos");
+        assertTrue(prop.createdAt > 0);
+        assertEq(propertyRegistry.propertyToLandlord(propertyCode), landlord);
+    }
+
+    function testTenantCapacityEnforcement() public {
+        vm.prank(operator);
+        propertyRegistry.registerProperty(propertyCode, landlord, 2, "Surulere, Lagos");
+
+        address tenant1 = address(10);
+        address tenant2 = address(11);
+        address tenant3 = address(12);
+
+        vm.prank(operator);
+        propertyRegistry.registerTenant(propertyCode, tenant1);
+
+        vm.prank(operator);
+        propertyRegistry.registerTenant(propertyCode, tenant2);
+
+        assertEq(propertyRegistry.getAvailableFlats(propertyCode), 0);
+
+        vm.prank(operator);
+        vm.expectRevert(abi.encodeWithSelector(PropertyRegistry.PropertyAtCapacity.selector, propertyCode, 2));
+        propertyRegistry.registerTenant(propertyCode, tenant3);
+    }
+
+    function testTenantDeregistrationFreesCapacity() public {
+        vm.prank(operator);
+        propertyRegistry.registerProperty(propertyCode, landlord, 1, "Surulere, Lagos");
+
+        address tenant1 = address(10);
+
+        vm.prank(operator);
+        propertyRegistry.registerTenant(propertyCode, tenant1);
+
+        assertEq(propertyRegistry.getAvailableFlats(propertyCode), 0);
+
+        vm.prank(operator);
+        propertyRegistry.deregisterTenant(propertyCode, tenant1);
+
+        assertEq(propertyRegistry.getAvailableFlats(propertyCode), 1);
+
+        address tenant2 = address(11);
+        vm.prank(operator);
+        propertyRegistry.registerTenant(propertyCode, tenant2);
+
+        assertEq(propertyRegistry.getAvailableFlats(propertyCode), 0);
+    }
+
+    function testTenantToPropertyMapping() public {
+        vm.prank(operator);
+        propertyRegistry.registerProperty(propertyCode, landlord, 10, "Surulere, Lagos");
+
+        vm.prank(operator);
+        propertyRegistry.registerTenant(propertyCode, tenant);
+
+        assertEq(propertyRegistry.getTenantProperty(tenant), propertyCode);
+
+        vm.prank(operator);
+        propertyRegistry.deregisterTenant(propertyCode, tenant);
+
+        assertEq(propertyRegistry.getTenantProperty(tenant), bytes32(0));
     }
 }

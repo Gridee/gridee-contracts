@@ -29,8 +29,9 @@ contract PropertyRegistryTest is Test {
     }
 
     function _getProperty(bytes32 code) internal view returns (PropertyRegistry.Property memory) {
-        (uint8 flatCount, string memory location, bool isActive, uint40 createdAt) = propertyRegistry.properties(code);
-        return PropertyRegistry.Property(flatCount, location, isActive, createdAt);
+        (uint8 flatCount, uint8 occupiedFlats, string memory location, bool isActive, uint40 createdAt) =
+            propertyRegistry.properties(code);
+        return PropertyRegistry.Property(flatCount, occupiedFlats, location, isActive, createdAt);
     }
 
     // ==================== REGISTER PROPERTY ====================
@@ -346,5 +347,178 @@ contract PropertyRegistryTest is Test {
         vm.prank(deployer);
         propertyRegistry.revokeRole(OPERATOR_ROLE, operator);
         assertFalse(propertyRegistry.hasRole(OPERATOR_ROLE, operator));
+    }
+
+    // ==================== TENANT REGISTRATION ====================
+
+    function test_RegisterTenant() public {
+        vm.prank(operator);
+        propertyRegistry.registerProperty(PROPERTY_CODE1, landlord1, 10, "Ikoyi");
+
+        address tenant1 = makeAddr("tenant1");
+
+        vm.prank(operator);
+        vm.expectEmit(true, false, false, true);
+        emit PropertyRegistry.TenantRegistered(operator, PROPERTY_CODE1, tenant1);
+        propertyRegistry.registerTenant(PROPERTY_CODE1, tenant1);
+
+        assertTrue(propertyRegistry.isTenantRegistered(PROPERTY_CODE1, tenant1));
+        assertEq(propertyRegistry.tenantToProperty(tenant1), PROPERTY_CODE1);
+
+        PropertyRegistry.Property memory prop = _getProperty(PROPERTY_CODE1);
+        assertEq(prop.occupiedFlats, 1);
+        assertEq(propertyRegistry.getAvailableFlats(PROPERTY_CODE1), 9);
+    }
+
+    function test_RegisterTenant_FillsCapacity() public {
+        vm.prank(operator);
+        propertyRegistry.registerProperty(PROPERTY_CODE1, landlord1, 2, "Ikoyi");
+
+        address tenant1 = makeAddr("tenant1");
+        address tenant2 = makeAddr("tenant2");
+
+        vm.prank(operator);
+        propertyRegistry.registerTenant(PROPERTY_CODE1, tenant1);
+
+        vm.prank(operator);
+        propertyRegistry.registerTenant(PROPERTY_CODE1, tenant2);
+
+        PropertyRegistry.Property memory prop = _getProperty(PROPERTY_CODE1);
+        assertEq(prop.occupiedFlats, 2);
+        assertEq(propertyRegistry.getAvailableFlats(PROPERTY_CODE1), 0);
+
+        address tenant3 = makeAddr("tenant3");
+        vm.prank(operator);
+        vm.expectRevert(abi.encodeWithSelector(PropertyRegistry.PropertyAtCapacity.selector, PROPERTY_CODE1, 2));
+        propertyRegistry.registerTenant(PROPERTY_CODE1, tenant3);
+    }
+
+    function test_RegisterTenant_RevertsIfAlreadyRegistered() public {
+        vm.prank(operator);
+        propertyRegistry.registerProperty(PROPERTY_CODE1, landlord1, 10, "Ikoyi");
+
+        address tenant1 = makeAddr("tenant1");
+
+        vm.prank(operator);
+        propertyRegistry.registerTenant(PROPERTY_CODE1, tenant1);
+
+        vm.prank(operator);
+        vm.expectRevert(abi.encodeWithSelector(PropertyRegistry.TenantAlreadyRegistered.selector, tenant1));
+        propertyRegistry.registerTenant(PROPERTY_CODE1, tenant1);
+    }
+
+    function test_RegisterTenant_RevertsIfPropertyNotFound() public {
+        address tenant1 = makeAddr("tenant1");
+
+        vm.prank(operator);
+        vm.expectRevert(abi.encodeWithSelector(PropertyRegistry.PropertyNotFound.selector, NONEXISTENT_CODE));
+        propertyRegistry.registerTenant(NONEXISTENT_CODE, tenant1);
+    }
+
+    function test_RegisterTenant_RevertsIfPropertyInactive() public {
+        vm.prank(operator);
+        propertyRegistry.registerProperty(PROPERTY_CODE1, landlord1, 10, "Ikoyi");
+
+        vm.prank(admin);
+        propertyRegistry.deactivateProperty(PROPERTY_CODE1);
+
+        address tenant1 = makeAddr("tenant1");
+
+        vm.prank(operator);
+        vm.expectRevert(abi.encodeWithSelector(PropertyRegistry.PropertyInactive.selector, PROPERTY_CODE1));
+        propertyRegistry.registerTenant(PROPERTY_CODE1, tenant1);
+    }
+
+    function test_RegisterTenant_RevertsIfNotOperator() public {
+        vm.prank(operator);
+        propertyRegistry.registerProperty(PROPERTY_CODE1, landlord1, 10, "Ikoyi");
+
+        address tenant1 = makeAddr("tenant1");
+
+        vm.prank(randomUser);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, randomUser, OPERATOR_ROLE)
+        );
+        propertyRegistry.registerTenant(PROPERTY_CODE1, tenant1);
+    }
+
+    // ==================== TENANT DEREGISTRATION ====================
+
+    function test_DeregisterTenant() public {
+        vm.prank(operator);
+        propertyRegistry.registerProperty(PROPERTY_CODE1, landlord1, 10, "Ikoyi");
+
+        address tenant1 = makeAddr("tenant1");
+
+        vm.prank(operator);
+        propertyRegistry.registerTenant(PROPERTY_CODE1, tenant1);
+
+        vm.prank(operator);
+        vm.expectEmit(true, false, false, true);
+        emit PropertyRegistry.TenantDeregistered(operator, PROPERTY_CODE1, tenant1);
+        propertyRegistry.deregisterTenant(PROPERTY_CODE1, tenant1);
+
+        assertFalse(propertyRegistry.isTenantRegistered(PROPERTY_CODE1, tenant1));
+        assertEq(propertyRegistry.tenantToProperty(tenant1), bytes32(0));
+
+        PropertyRegistry.Property memory prop = _getProperty(PROPERTY_CODE1);
+        assertEq(prop.occupiedFlats, 0);
+        assertEq(propertyRegistry.getAvailableFlats(PROPERTY_CODE1), 10);
+    }
+
+    function test_DeregisterTenant_RevertsIfNotRegistered() public {
+        vm.prank(operator);
+        propertyRegistry.registerProperty(PROPERTY_CODE1, landlord1, 10, "Ikoyi");
+
+        address tenant1 = makeAddr("tenant1");
+
+        vm.prank(operator);
+        vm.expectRevert(
+            abi.encodeWithSelector(PropertyRegistry.TenantNotRegistered.selector, tenant1, PROPERTY_CODE1)
+        );
+        propertyRegistry.deregisterTenant(PROPERTY_CODE1, tenant1);
+    }
+
+    function test_DeregisterTenant_RevertsIfPropertyNotFound() public {
+        address tenant1 = makeAddr("tenant1");
+
+        vm.prank(operator);
+        vm.expectRevert(abi.encodeWithSelector(PropertyRegistry.PropertyNotFound.selector, NONEXISTENT_CODE));
+        propertyRegistry.deregisterTenant(NONEXISTENT_CODE, tenant1);
+    }
+
+    function test_DeregisterTenant_RevertsIfNotOperator() public {
+        vm.prank(operator);
+        propertyRegistry.registerProperty(PROPERTY_CODE1, landlord1, 10, "Ikoyi");
+
+        address tenant1 = makeAddr("tenant1");
+
+        vm.prank(operator);
+        propertyRegistry.registerTenant(PROPERTY_CODE1, tenant1);
+
+        vm.prank(randomUser);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, randomUser, OPERATOR_ROLE)
+        );
+        propertyRegistry.deregisterTenant(PROPERTY_CODE1, tenant1);
+    }
+
+    // ==================== GET TENANT PROPERTY ====================
+
+    function test_GetTenantProperty() public {
+        vm.prank(operator);
+        propertyRegistry.registerProperty(PROPERTY_CODE1, landlord1, 10, "Ikoyi");
+
+        address tenant1 = makeAddr("tenant1");
+
+        vm.prank(operator);
+        propertyRegistry.registerTenant(PROPERTY_CODE1, tenant1);
+
+        assertEq(propertyRegistry.getTenantProperty(tenant1), PROPERTY_CODE1);
+    }
+
+    function test_GetTenantProperty_ReturnsZeroIfNotRegistered() public {
+        address unknown = makeAddr("unknown");
+        assertEq(propertyRegistry.getTenantProperty(unknown), bytes32(0));
     }
 }

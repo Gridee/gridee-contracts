@@ -6,7 +6,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
 interface IGrideeToken is IERC20 {
-    function mint(address to, uint256 amount) external;
     function burn(address account, uint256 amount) external;
 }
 
@@ -16,7 +15,6 @@ contract EnergyLedger is AccessControl, Pausable {
     IGrideeToken public token;
     mapping(address => bool) public isCutOff;
 
-    event TokensMinted(address indexed tenant, uint256 amount);
     event TokensDeducted(address indexed tenant, uint256 amount);
     event CutOffUpdated(address indexed admin, address tenant, bool status);
 
@@ -37,7 +35,7 @@ contract EnergyLedger is AccessControl, Pausable {
         token = IGrideeToken(tokenAddress);
     }
 
-    function mintTokens(address tenantWallet, uint256 amount) external onlyRole(OPERATOR_ROLE) whenNotPaused {
+    function deductTokens(address tenantWallet, uint256 amount) external onlyRole(OPERATOR_ROLE) whenNotPaused {
         if (tenantWallet == address(0)) {
             revert ZeroAddress(tenantWallet);
         }
@@ -46,19 +44,6 @@ contract EnergyLedger is AccessControl, Pausable {
         }
         if (isCutOff[tenantWallet]) {
             revert TenantCutOff(tenantWallet);
-        }
-
-        token.mint(tenantWallet, amount);
-
-        emit TokensMinted(tenantWallet, amount);
-    }
-
-    function deductTokens(address tenantWallet, uint256 amount) external onlyRole(OPERATOR_ROLE) whenNotPaused {
-        if (tenantWallet == address(0)) {
-            revert ZeroAddress(tenantWallet);
-        }
-        if (amount == 0) {
-            revert ZeroAmount();
         }
 
         uint256 balance = token.balanceOf(tenantWallet);
