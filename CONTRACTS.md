@@ -1,20 +1,20 @@
 # Gridee Smart Contracts
 
-All contracts are deployed on **Lisk Sepolia** (Chain ID: 4202) and verified on [Blockscout](https://sepolia-blockscout.lisk.com/).
+All contracts are deployed on **Base Sepolia** (Chain ID: 84532) and verified on [Blockscout](https://base-sepolia.blockscout.com/).
 
 ## Deployed Addresses
 
 | Contract | Address | Blockscout |
 |---|---|---|
-| GrideeToken | `0x3D45a4d1953490Bc094E970177d1e73D9a72F781` | [View](https://sepolia-blockscout.lisk.com/address/0x3D45a4d1953490Bc094E970177d1e73D9a72F781) |
-| PropertyRegistry | `0x3b0Ec16b27f7d3ecE4b959507Dc6a6Ab2790d61f` | [View](https://sepolia-blockscout.lisk.com/address/0x3b0Ec16b27f7d3ecE4b959507Dc6a6Ab2790d61f) |
-| EnergyLedger | `0x532FAC26C1ee8485c5f55fA379036F9d5C024482` | [View](https://sepolia-blockscout.lisk.com/address/0x532FAC26C1ee8485c5f55fA379036F9d5C024482) |
+| GrideeToken | `0xCEc9F3a5131f3DD154Bc7135a70a95f4fa3ceA82` | [View](https://base-sepolia.blockscout.com/address/0xCEc9F3a5131f3DD154Bc7135a70a95f4fa3ceA82) |
+| PropertyRegistry | `0x22454cA4d7e45549DA29b2ccD331D57df0Efa549` | [View](https://base-sepolia.blockscout.com/address/0x22454cA4d7e45549DA29b2ccD331D57df0Efa549) |
+| EnergyLedger | `0x24f5A816cb1f9e0fDA738aac05fB9bB180075327` | [View](https://base-sepolia.blockscout.com/address/0x24f5A816cb1f9e0fDA738aac05fB9bB180075327) |
 
-### USDC on Lisk Sepolia
+### USDC on Base Sepolia
 
 | Token | Address |
 |---|---|
-| USDC | `0x83d90d759849eE558E1F05289e6c4a46Ac8Aa037` |
+| USDC (Circle) | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
 
 ## Architecture
 
@@ -255,8 +255,8 @@ async function registerTenant(propertyCode: string, tenantWallet: string) {
 cp .env.example .env
 # Edit .env with your values
 
-# Deploy to Lisk Sepolia
-forge script script/Deploy.s.sol --rpc-url $LISK_SEPOLIA_RPC_URL --broadcast --verifier blockscout --verifier-url https://sepolia-blockscout.lisk.com/api --chain 4202
+# Deploy to Base Sepolia
+forge script script/Deploy.s.sol --rpc-url $BASE_SEPOLIA_RPC_URL --broadcast --verifier blockscout --verifier-url https://base-sepolia.blockscout.com/api --chain-id 84532
 ```
 
 ### Required Environment Variables
